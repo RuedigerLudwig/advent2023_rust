@@ -3,6 +3,7 @@ use itertools::Itertools;
 use std::{num, ops::Add, str::FromStr};
 
 const DAY_NUMBER: DayType = 2;
+const SUPPOSED_CUBES: Set = Set::new(12, 13, 14);
 
 pub struct Day;
 
@@ -12,11 +13,10 @@ impl DayTrait for Day {
     }
 
     fn part1(&self, input: &str) -> RResult {
-        let supposed = Set::new(12, 13, 14);
         let result = input
             .lines()
             .map(|line| line.parse::<Game>())
-            .filter_ok(|game| game.is_possible_with(&supposed))
+            .filter_ok(|game| game.is_possible_with(&SUPPOSED_CUBES))
             .map_ok(|game| game.id)
             .fold_ok(0, Add::add)?;
         Ok(result.into())
@@ -43,7 +43,7 @@ enum DayError {
 
 type IntType = u32;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(Debug, PartialEq, Eq, Default)]
 struct Set {
     red: IntType,
     green: IntType,
@@ -52,18 +52,23 @@ struct Set {
 
 impl Set {
     #[inline]
-    pub fn new(red: IntType, green: IntType, blue: IntType) -> Self {
+    pub const fn new(red: IntType, green: IntType, blue: IntType) -> Self {
         Self { red, green, blue }
-    }
-
-    pub fn is_subset_of(&self, other: &Self) -> bool {
-        self.red <= other.red && self.green <= other.green && self.blue <= other.blue
     }
 
     pub fn power(&self) -> IntType {
         self.red * self.green * self.blue
     }
 
+    /// Checks if other is a superset of self. If this is the case
+    /// other could be the cubes in the sack, when we see self
+    /// as a result
+    pub fn is_subset_of(&self, other: &Self) -> bool {
+        self.red <= other.red && self.green <= other.green && self.blue <= other.blue
+    }
+
+    /// calculates the minimal set of cubes nessessary
+    /// for self and other to be drawn from the sack
     pub fn get_minimal_superset(&self, other: &Self) -> Self {
         Self::new(
             self.red.max(other.red),
@@ -72,17 +77,17 @@ impl Set {
         )
     }
 
-    pub fn add_red(mut self, red: IntType) -> Self {
+    fn add_red(mut self, red: IntType) -> Self {
         self.red += red;
         self
     }
 
-    pub fn add_green(mut self, green: IntType) -> Self {
+    fn add_green(mut self, green: IntType) -> Self {
         self.green += green;
         self
     }
 
-    pub fn add_blue(mut self, blue: IntType) -> Self {
+    fn add_blue(mut self, blue: IntType) -> Self {
         self.blue += blue;
         self
     }
@@ -91,6 +96,10 @@ impl Set {
 impl FromStr for Set {
     type Err = DayError;
 
+    /// parses one set of cubes. I do not assume that each color is
+    /// mentioned at most once. This was not mentioned and does not
+    /// happen in the input, but I still think this is a sensible
+    /// assumption.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.split(',').try_fold(Set::default(), |set, item| {
             if let Some(amount) = item.trim_end().strip_suffix("red") {
@@ -116,16 +125,20 @@ struct Game {
 }
 
 impl Game {
+    /// for part one. This check if this game is a possible
+    /// outcome given the set of cubes
     pub fn is_possible_with(&self, compare: &Set) -> bool {
         self.sets.iter().all(|set| set.is_subset_of(compare))
     }
 
+    /// for part two. This checks what is the minimum required
+    /// set of cubes for the game as an outcome
+    /// If we ever had an ampty game and empty set of cubes
+    /// would be the sensible result
     pub fn minimum_required(&self) -> Set {
         self.sets
             .iter()
-            .copied()
-            .reduce(|min, next| min.get_minimal_superset(&next))
-            .unwrap_or_default()
+            .fold(Set::default(), |min, next| min.get_minimal_superset(next))
     }
 }
 
