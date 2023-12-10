@@ -317,12 +317,37 @@ impl<T> Pos2<T>
 where
     T: Num + Copy + CheckedAdd + CheckedSub,
 {
-    pub fn check_add(self, direction: Direction) -> Option<Self> {
+    pub fn checked_add_direction(self, direction: Direction) -> Option<Self> {
         match direction {
             Direction::East => self.x.checked_add(&T::one()).map(|x| Pos2::new(x, self.y)),
             Direction::North => self.y.checked_sub(&T::one()).map(|y| Pos2::new(self.x, y)),
             Direction::West => self.x.checked_sub(&T::one()).map(|x| Pos2::new(x, self.y)),
             Direction::South => self.y.checked_add(&T::one()).map(|y| Pos2::new(self.x, y)),
         }
+    }
+}
+
+impl Pos2<usize> {
+    pub fn safe_matrix_get<'a, A>(&self, mat: &'a [Vec<A>]) -> Option<&'a A> {
+        mat.get(self.y()).and_then(|row| row.get(self.x()))
+    }
+
+    pub fn safe_matrix_add<A>(&self, mat: &[Vec<A>], dir: Direction) -> Option<Pos2<usize>> {
+        self.checked_add_direction(dir)
+            .filter(|pos| pos.safe_matrix_get(mat).is_some())
+    }
+
+    pub fn safe_matrix_add_and_get<'a, A>(
+        &self,
+        mat: &'a [Vec<A>],
+        dir: Direction,
+    ) -> Option<(Pos2<usize>, &'a A)> {
+        self.checked_add_direction(dir)
+            .and_then(|pos| pos.safe_matrix_get(mat).map(|val| (pos, val)))
+    }
+
+    pub fn safe_matrix_set<A>(&self, mat: &mut [Vec<A>], new_value: A) {
+        mat.get_mut(self.y())
+            .and_then(|row| row.get_mut(self.x()).map(|val| *val = new_value));
     }
 }
