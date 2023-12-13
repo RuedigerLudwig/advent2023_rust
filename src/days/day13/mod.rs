@@ -13,12 +13,12 @@ impl DayTrait for Day {
 
     fn part1(&self, input: &str) -> RResult {
         let pl: PatternList = input.parse()?;
-        Ok(pl.get_sum(0).into())
+        Ok(pl.get_evaluation(0).into())
     }
 
     fn part2(&self, input: &str) -> RResult {
         let pl: PatternList = input.parse()?;
-        Ok(pl.get_sum(1).into())
+        Ok(pl.get_evaluation(1).into())
     }
 }
 
@@ -26,8 +26,10 @@ impl DayTrait for Day {
 enum DayError {
     #[error("Not an Int")]
     ParseIntError(#[from] num::ParseIntError),
-    #[error("Pattern is not a ractangle")]
+    #[error("Pattern is not a rectangle")]
     NotAReactangle,
+    #[error("Unknown Char: {0}")]
+    UnknownChar(char),
 }
 
 struct Pattern {
@@ -35,51 +37,43 @@ struct Pattern {
 }
 
 impl Pattern {
-    fn count_errors(fst: &[bool], snd: &[bool]) -> usize {
+    fn count_smudges(fst: &[bool], snd: &[bool]) -> usize {
         fst.iter()
             .zip(snd.iter())
             .filter(|(fst, snd)| fst != snd)
             .count()
     }
 
-    fn check_horizontal(&self, allowed_errors: usize) -> Option<usize> {
-        let same = self
-            .dots
+    fn check_horizontal(&self, expected_smudges: usize) -> Option<usize> {
+        self.dots
             .iter()
             .enumerate()
             .tuple_windows()
             .filter_map(|((pos, fst), (_, snd))| {
-                if Self::count_errors(fst, snd) <= allowed_errors {
+                if Self::count_smudges(fst, snd) <= expected_smudges {
                     Some(pos)
                 } else {
                     None
                 }
             })
-            .collect_vec();
-
-        let len = self.dots.len();
-        for row in same {
-            let start = if 2 * (row + 1) < len {
-                0
-            } else {
-                2 * (row + 1) - len
-            };
-            let errors: usize = (start..=row)
-                .map(|r| Self::count_errors(&self.dots[r], &self.dots[2 * row + 1 - r]))
-                .sum();
-            if errors == allowed_errors {
-                return Some(row + 1);
-            }
-        }
-
-        None
+            .find_map(|row| {
+                let end = row.min(self.dots.len() - (row + 2));
+                let smudges: usize = (0..=end)
+                    .map(|r| Self::count_smudges(&self.dots[row - r], &self.dots[row + r + 1]))
+                    .sum();
+                if smudges == expected_smudges {
+                    Some(row + 1)
+                } else {
+                    None
+                }
+            })
     }
 
-    fn check_vertical(&self, allowed_errors: usize) -> Option<usize> {
-        self.transpose().check_horizontal(allowed_errors)
+    fn check_vertical(&self, expected_smudges: usize) -> Option<usize> {
+        self.transpose().check_horizontal(expected_smudges)
     }
 
-    fn transpose(&self) -> Pattern {
+    fn transpose(&self) -> Self {
         Self {
             dots: (0..self.dots[0].len())
                 .map(|x| (0..self.dots.len()).map(|y| self.dots[y][x]).collect_vec())
@@ -87,20 +81,26 @@ impl Pattern {
         }
     }
 
-    fn new(lines: &mut std::str::Lines<'_>) -> Option<Result<Self, DayError>> {
-        let mut dots = vec![];
-        for line in lines {
-            if line.is_empty() {
-                break;
-            }
-            dots.push(line.chars().map(|d| d == '#').collect_vec())
-        }
+    fn new(lines: &mut std::str::Lines<'_>) -> Result<Option<Self>, DayError> {
+        let dots: Vec<Vec<bool>> = lines
+            .take_while(|line| !line.is_empty())
+            .map(|line| {
+                line.chars()
+                    .map(|d| match d {
+                        '#' => Ok(true),
+                        '.' => Ok(false),
+                        _ => Err(DayError::UnknownChar(d)),
+                    })
+                    .try_collect()
+            })
+            .try_collect()?;
+
         if dots.is_empty() {
-            None
+            Ok(None)
         } else if !dots.iter().map(|row| row.len()).all_equal() {
-            Some(Err(DayError::NotAReactangle))
+            Err(DayError::NotAReactangle)
         } else {
-            Some(Ok(Self { dots }))
+            Ok(Some(Self { dots }))
         }
     }
 }
@@ -115,22 +115,22 @@ impl FromStr for PatternList {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut lines = s.lines();
         let mut list = vec![];
-        while let Some(pattern) = Pattern::new(&mut lines) {
-            list.push(pattern?)
+        while let Some(pattern) = Pattern::new(&mut lines)? {
+            list.push(pattern)
         }
         Ok(Self { list })
     }
 }
 
 impl PatternList {
-    pub fn get_sum(&self, allowed_errors: usize) -> usize {
+    pub fn get_evaluation(&self, expected_smudges: usize) -> usize {
         self.list
             .iter()
             .filter_map(|pattern| {
                 pattern
-                    .check_horizontal(allowed_errors)
+                    .check_horizontal(expected_smudges)
                     .map(|h| h * 100)
-                    .or_else(|| pattern.check_vertical(allowed_errors))
+                    .or_else(|| pattern.check_vertical(expected_smudges))
             })
             .sum()
     }
@@ -169,10 +169,10 @@ mod test {
 
         let pl: PatternList = input.parse()?;
         assert_eq!(pl.list.len(), 2);
+        assert_eq!(pl.list[0].check_horizontal(0), None);
+        assert_eq!(pl.list[0].check_vertical(0), Some(5));
         assert_eq!(pl.list[1].check_horizontal(0), Some(4));
         assert_eq!(pl.list[1].check_vertical(0), None);
-        assert_eq!(pl.list[0].check_vertical(0), Some(5));
-        assert_eq!(pl.list[0].check_horizontal(0), None);
 
         Ok(())
     }
@@ -184,10 +184,10 @@ mod test {
 
         let pl: PatternList = input.parse()?;
         assert_eq!(pl.list.len(), 2);
+        assert_eq!(pl.list[0].check_horizontal(1), Some(3));
+        assert_eq!(pl.list[0].check_vertical(1), None);
         assert_eq!(pl.list[1].check_horizontal(1), Some(1));
         assert_eq!(pl.list[1].check_vertical(1), None);
-        assert_eq!(pl.list[0].check_vertical(1), None);
-        assert_eq!(pl.list[0].check_horizontal(1), Some(3));
 
         Ok(())
     }
