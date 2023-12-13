@@ -171,15 +171,10 @@ impl<'a> RefSpringList<'a> {
         self.as_list[0]
     }
 
-    #[inline]
-    fn as_string(&self) -> String {
-        self.as_icon.iter().map(Into::<char>::into).collect()
-    }
-
     fn get_sub(
         &self,
         value: Option<u64>,
-        known: &mut HashMap<(String, u64, Option<u64>), u64>,
+        known: &mut HashMap<(usize, u64, Option<u64>), u64>,
     ) -> u64 {
         if self.as_list.is_empty() {
             if self
@@ -204,7 +199,7 @@ impl<'a> RefSpringList<'a> {
         if self.as_list_sum > self.possible + added || self.as_list_sum < self.minimum + added {
             return 0;
         }
-        let hash = (self.as_string(), self.as_list_sum, value);
+        let hash = (self.as_icon.len(), self.as_list_sum, value);
         if let Some(&val) = known.get(&hash) {
             return val;
         }
