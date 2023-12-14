@@ -23,7 +23,7 @@ impl DayTrait for Day {
     fn part2(&self, input: &str) -> RResult {
         let mut field: Platform = input.parse()?;
 
-        Ok(field.northern_load_after(1000000000).into())
+        Ok(field.northern_load_after(1_000_000_000).into())
     }
 }
 
@@ -31,9 +31,9 @@ impl DayTrait for Day {
 enum DayError {
     #[error("Unknown Rock {0}")]
     UnknonwRock(char),
-    #[error("Need a reactangle field")]
+    #[error("Need a reactangle platform")]
     NeedRectanglePlatform,
-    #[error("Field must nut be empty")]
+    #[error("Platform must not be empty")]
     EmptyPlatform,
 }
 
