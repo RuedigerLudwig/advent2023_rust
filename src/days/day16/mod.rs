@@ -1,8 +1,11 @@
 use super::{DayTrait, DayType, RResult};
 use crate::common::{direction::Direction, pos2::Pos2};
-use colored::Colorize;
 use itertools::Itertools;
-use std::{collections::HashMap, num, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    num,
+    str::FromStr,
+};
 
 const DAY_NUMBER: DayType = 16;
 
@@ -59,8 +62,8 @@ impl TryFrom<char> for Mirror {
 struct Beam {
     pos: Pos2<usize>,
     direction: Direction,
-    visited: Vec<Vec<Vec<Pos2<usize>>>>,
-    splits: Vec<(Pos2<usize>, Direction)>,
+    visited: HashSet<Pos2<usize>>,
+    splits: Vec<(Pos2<usize>, Direction, HashSet<Pos2<usize>>)>,
 }
 
 impl Beam {
@@ -68,9 +71,19 @@ impl Beam {
         Self {
             pos: start,
             direction,
-            visited: vec![],
+            visited: HashSet::new(),
             splits: vec![],
         }
+    }
+
+    pub fn split(&mut self) {
+        let mut visited = HashSet::new();
+        std::mem::swap(&mut visited, &mut self.visited);
+        self.splits.push((self.pos, self.direction, visited));
+    }
+
+    pub fn retreat(&mut self) {
+        todo!()
     }
 }
 
@@ -79,32 +92,33 @@ struct Contraption {
 }
 
 impl Contraption {
-    pub fn follow_beam(&self) -> usize {
-        let mut known_splits = HashMap::new();
-        let mut beam = Beam::new(Pos2::new(0, 0), Direction::East);
-        let mut touched = vec![vec![vec![]; self.mirrors[0].len()]; self.mirrors.len()];
-
+    fn follow(
+        &self,
+        beam: &mut Beam,
+        known_splits: &mut HashMap<(Pos2<usize>, Direction), HashSet<Pos2<usize>>>,
+    ) {
         loop {
             match beam.pos.safe_matrix_get(&self.mirrors).unwrap() {
                 Mirror::None => {}
                 Mirror::Horizontal => {
                     if beam.direction.is_vertical() {
-                        if let Some(touched) = known_splits.get(&(beam.pos, beam.direction)) {
-                            todo!()
-                        }
                         beam.direction = beam.direction.turn_right();
-                        let other = beam.direction.turn_back();
-                        if let Some(next) = beam.pos.safe_matrix_add(&self.mirrors, other) {
-                            beam.splits.push((next, other));
+                        if let Some(touched) = known_splits.get(&(beam.pos, beam.direction)) {
+                            beam.visited.extend(touched.iter().copied());
+                            beam.retreat();
+                        } else {
+                            beam.split();
                         }
                     }
                 }
                 Mirror::Vertical => {
                     if beam.direction.is_horizontal() {
                         beam.direction = beam.direction.turn_right();
-                        let other = beam.direction.turn_back();
-                        if let Some(next) = beam.pos.safe_matrix_add(&self.mirrors, other) {
-                            beam.splits.push((next, other));
+                        if let Some(touched) = known_splits.get(&(beam.pos, beam.direction)) {
+                            beam.visited.extend(touched.iter().copied());
+                            beam.retreat();
+                        } else {
+                            beam.split();
                         }
                     }
                 }
@@ -135,6 +149,14 @@ impl Contraption {
             };
             beam.pos = next_pos;
         }
+    }
+
+    pub fn follow_beam(&self) -> usize {
+        let mut known_splits = HashMap::new();
+        let mut beam = Beam::new(Pos2::new(0, 0), Direction::East);
+        let mut touched = vec![vec![vec![]; self.mirrors[0].len()]; self.mirrors.len()];
+
+        loop {}
         touched_count
     }
 }
