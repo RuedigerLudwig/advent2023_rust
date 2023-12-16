@@ -25,6 +25,19 @@ impl Direction {
         .into_iter()
     }
 
+    #[inline]
+    pub fn is_horizontal(&self) -> bool {
+        match self {
+            East | West => true,
+            North | South => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_vertical(&self) -> bool {
+        !self.is_horizontal()
+    }
+
     pub fn is_perpendicular(&self, other: &Direction) -> bool {
         match *self {
             East => *other != East && *other != West,
