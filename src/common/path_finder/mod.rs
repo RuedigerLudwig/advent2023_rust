@@ -26,7 +26,7 @@ pub fn find_best_path<P: PathFinder>(path_finder: P) -> Option<P::Item> {
     queue.push(path_finder.get_start_item());
 
     while let Some(item) = queue.pop() {
-        if path_finder.is_finished(&item) {
+        if path_finder.is_finished(&item) && !skipper.skip_when_finished(&item) {
             return Some(item);
         }
 

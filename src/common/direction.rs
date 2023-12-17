@@ -25,6 +25,15 @@ impl Direction {
         .into_iter()
     }
 
+    pub fn arrow(&self) -> char {
+        match self {
+            East => '>',
+            North => '^',
+            West => '<',
+            South => 'v',
+        }
+    }
+
     #[inline]
     pub fn is_horizontal(&self) -> bool {
         match self {

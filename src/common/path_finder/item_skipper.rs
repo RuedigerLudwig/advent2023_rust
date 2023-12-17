@@ -5,6 +5,11 @@ pub trait ItemSkipper {
 
     fn init() -> Self;
     fn skip_item(&mut self, item: &Self::Item) -> bool;
+
+    #[inline]
+    fn skip_when_finished(&self, item: &Self::Item) -> bool {
+        false
+    }
 }
 
 pub trait FingerprintItem {
