@@ -3,6 +3,8 @@
 mod item_skipper;
 mod path_queue;
 
+use std::path;
+
 pub use self::path_queue::PathQueue;
 pub use item_skipper::{FingerprintItem, FingerprintSkipper, ItemSkipper};
 
@@ -17,10 +19,14 @@ pub trait PathFinder {
 
     fn get_next_states<'a>(&'a self, item: &'a Self::Item)
         -> impl Iterator<Item = Self::Item> + 'a;
+
+    fn init_skipper(&self) -> Self::Skipper {
+        Self::Skipper::init()
+    }
 }
 
 pub fn find_best_path<P: PathFinder>(path_finder: P) -> Option<P::Item> {
-    let mut skipper = P::Skipper::init();
+    let mut skipper = path_finder.init_skipper();
 
     let mut queue = P::Queue::create();
     queue.push(path_finder.get_start_item());
