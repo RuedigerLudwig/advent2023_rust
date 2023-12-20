@@ -1,4 +1,4 @@
-use crate::common::{direction::Direction, pos2::Pos2, turn::Turn};
+use crate::common::{area::Area, direction::Direction, pos2::Pos2, turn::Turn};
 
 use super::{DayTrait, DayType, RResult};
 use itertools::Itertools;
@@ -243,22 +243,7 @@ impl Lagoon {
     }
 
     fn extract_pool(&self, real: bool) -> i64 {
-        let (turns, _) = self
-            .instructions
-            .iter()
-            .fold((0, None), |(turns, prev), instruction| {
-                if let Some(prev) = prev {
-                    match instruction.turn(real).get_turn(prev) {
-                        Turn::Back | Turn::Forward => unreachable!(),
-                        Turn::Left => (turns - 1, Some(instruction.turn(real))),
-                        Turn::Right => (turns + 1, Some(instruction.turn(real))),
-                    }
-                } else {
-                    (turns, Some(instruction.turn(real)))
-                }
-            });
-        let turn = if turns == -4 { Turn::Left } else { Turn::Right };
-        let (_, area) = self
+        let horizontal = self
             .instructions
             .iter()
             .scan(Pos2::new(0, 0), |pos, instruction| {
@@ -267,7 +252,12 @@ impl Lagoon {
                 match instruction.turn(real) {
                     Direction::East => {
                         *pos += Pos2::new(steps, 0);
-                        Some(Some(Line::new(prev_pos, *pos)))
+                        Some(Some(Operation::Add(LagoonArea::new(
+                            pos.x(),
+                            prev_pos.y() + 1,
+                            prev_pos.x() - 1,
+                            i64::MAX,
+                        ))))
                     }
                     Direction::North => {
                         *pos += Pos2::new(0, -steps);
@@ -275,7 +265,12 @@ impl Lagoon {
                     }
                     Direction::West => {
                         *pos += Pos2::new(-steps, 0);
-                        Some(Some(Line::new(prev_pos, *pos)))
+                        Some(Some(Operation::Sub(LagoonArea::new(
+                            pos.x() - 1,
+                            prev_pos.y(),
+                            prev_pos.x(),
+                            i64::MAX,
+                        ))))
                     }
                     Direction::South => {
                         *pos += Pos2::new(0, steps);
@@ -284,58 +279,66 @@ impl Lagoon {
                 }
             })
             .flatten()
-            .sorted_by_key(|line| line.from.y())
-            .fold((Lines::new(), 0), |(mut lines, mut area), line| {
-                if let Some(prev_y) = lines.y {
-                    let curr_y = line.from.y();
-                    let height = curr_y - prev_y;
-                    for prev in lines.lines.iter() {
-                        area += (prev.width()) * height;
-                    }
-                }
-                //area += line.width().abs();
-                lines.add(line);
-                (lines, area)
+            .sorted_by_key(|line| match line {
+                Operation::Add(area) => area.rect.top(),
+                Operation::Sub(area) => area.rect.top(),
+            })
+            .collect_vec();
+        let max_y = match horizontal.last().unwrap() {
+            Operation::Add(area) => area.rect.bottom(),
+            Operation::Sub(area) => area.rect.bottom(),
+        };
+
+        let areas = horizontal
+            .into_iter()
+            .fold(vec![], |areas: Vec<Operation>, line| {
+                let added = areas.iter().filter_map(|area| match area {
+                    Operation::Add(_) => todo!(),
+                    Operation::Sub(_) => todo!(),
+                });
+                todo!()
             });
-
-        area
+        todo!()
     }
 }
 
-struct Line {
-    from: Pos2<i64>,
-    to: Pos2<i64>,
+enum Operation {
+    Add(LagoonArea),
+    Sub(LagoonArea),
 }
 
-impl Line {
-    fn new(from: Pos2<i64>, to: Pos2<i64>) -> Self {
-        Self { from, to }
-    }
-
-    fn width(&self) -> i64 {
-        if self.to.x() > self.from.x() {
-            self.to.x() - self.from.x() + 1
-        } else {
-            self.to.x() - self.from.x() - 1
-        }
-    }
+#[derive(Debug, Clone, Copy)]
+struct LagoonArea {
+    rect: Area<i64>,
 }
 
-struct Lines {
-    y: Option<i64>,
-    lines: Vec<Line>,
-}
-impl Lines {
-    fn new() -> Self {
+impl LagoonArea {
+    pub fn new(left: i64, right: i64, top: i64, bottom: i64) -> Self {
         Self {
-            y: None,
-            lines: vec![],
+            rect: Area::from_points(left, top, right, bottom),
         }
     }
 
-    fn add(&mut self, line: Line) {
-        self.y = Some(line.from.y());
-        self.lines.push(line);
+    pub fn intersection(&self, other: &LagoonArea) -> Option<Self> {
+        match (
+            self.rect.contains(other.rect.upper_left()),
+            self.rect.contains(other.rect.upper_right()),
+        ) {
+            (true, true) => Some(*other),
+            (true, false) => Some(Self::new(
+                other.rect.left(),
+                other.rect.top(),
+                self.rect.right(),
+                self.rect.bottom(),
+            )),
+            (false, true) => Some(Self::new(
+                self.rect.left(),
+                other.rect.top(),
+                other.rect.right(),
+                self.rect.bottom(),
+            )),
+            (false, false) => None,
+        }
     }
 }
 

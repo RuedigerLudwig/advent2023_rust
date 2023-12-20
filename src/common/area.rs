@@ -53,6 +53,14 @@ where
         self.upper_right
     }
 
+    pub fn upper_left(&self) -> Pos2<T> {
+        Pos2::new(self.lower_left.x(), self.upper_right.y())
+    }
+
+    pub fn lower_right(&self) -> Pos2<T> {
+        Pos2::new(self.upper_right.x(), self.lower_left.y())
+    }
+
     pub fn top(&self) -> T {
         self.upper_right.y()
     }
