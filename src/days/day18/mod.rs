@@ -243,20 +243,35 @@ impl Lagoon {
     }
 
     fn extract_pool(&self, real: bool) -> i64 {
+        let (outline, _, max_y) = self.instructions.iter().fold(
+            (0, Pos2::new(0, 0), i64::MIN),
+            |(len, mut pos, max_y), instruction| {
+                let steps = instruction.steps(real);
+                pos += match instruction.turn(real) {
+                    Direction::East => Pos2::new(steps, 0),
+                    Direction::North => Pos2::new(0, -steps),
+                    Direction::West => Pos2::new(-steps, 0),
+                    Direction::South => Pos2::new(0, steps),
+                };
+                let max_y = max_y.max(pos.y());
+                (len + instruction.steps(real), pos, max_y)
+            },
+        );
+        let max_y = max_y - 1;
+
         let horizontal = self
             .instructions
             .iter()
             .scan(Pos2::new(0, 0), |pos, instruction| {
                 let steps = instruction.steps(real);
-                let prev_pos = *pos;
                 match instruction.turn(real) {
                     Direction::East => {
                         *pos += Pos2::new(steps, 0);
                         Some(Some(Operation::Add(LagoonArea::new(
-                            pos.x(),
-                            prev_pos.y() + 1,
-                            prev_pos.x() - 1,
-                            i64::MAX,
+                            pos.x() - steps + 1,
+                            pos.y() + 1,
+                            pos.x() - 1,
+                            max_y,
                         ))))
                     }
                     Direction::North => {
@@ -266,10 +281,10 @@ impl Lagoon {
                     Direction::West => {
                         *pos += Pos2::new(-steps, 0);
                         Some(Some(Operation::Sub(LagoonArea::new(
-                            pos.x() - 1,
-                            prev_pos.y(),
-                            prev_pos.x(),
-                            i64::MAX,
+                            pos.x(),
+                            pos.y(),
+                            pos.x() + steps,
+                            max_y,
                         ))))
                     }
                     Direction::South => {
@@ -279,26 +294,26 @@ impl Lagoon {
                 }
             })
             .flatten()
-            .sorted_by_key(|line| match line {
-                Operation::Add(area) => area.rect.top(),
-                Operation::Sub(area) => area.rect.top(),
-            })
+            .sorted_by_key(|line| line.get_rect().top())
             .collect_vec();
-        let max_y = match horizontal.last().unwrap() {
-            Operation::Add(area) => area.rect.bottom(),
-            Operation::Sub(area) => area.rect.bottom(),
-        };
 
-        let areas = horizontal
+        let inside: i64 = horizontal
             .into_iter()
-            .fold(vec![], |areas: Vec<Operation>, line| {
-                let added = areas.iter().filter_map(|area| match area {
-                    Operation::Add(_) => todo!(),
-                    Operation::Sub(_) => todo!(),
-                });
-                todo!()
-            });
-        todo!()
+            .fold(vec![], |mut areas: Vec<Operation>, current| {
+                let mut added = areas
+                    .iter()
+                    .filter_map(|area| area.intersection(&current))
+                    .collect_vec();
+                if matches!(current, Operation::Add(_)) {
+                    added.push(current);
+                }
+                areas.append(&mut added);
+                areas
+            })
+            .into_iter()
+            .map(|area| area.get_area())
+            .sum();
+        outline + inside
     }
 }
 
@@ -307,16 +322,51 @@ enum Operation {
     Sub(LagoonArea),
 }
 
+impl Operation {
+    pub fn intersection(&self, other: &Self) -> Option<Self> {
+        match (self, other) {
+            (Operation::Add(a1), Operation::Add(a2)) | (Operation::Add(a1), Operation::Sub(a2)) => {
+                a1.intersection(a2).map(Operation::Sub)
+            }
+            (Operation::Sub(_), Operation::Add(_)) | (Operation::Sub(_), Operation::Sub(_)) => None,
+        }
+    }
+
+    #[inline]
+    pub fn get_rect(&self) -> &LagoonArea {
+        match self {
+            Operation::Add(area) | Operation::Sub(area) => area,
+        }
+    }
+
+    pub fn get_area(&self) -> i64 {
+        match self {
+            Operation::Add(area) => area.area(),
+            Operation::Sub(area) => -area.area(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct LagoonArea {
     rect: Area<i64>,
 }
 
 impl LagoonArea {
-    pub fn new(left: i64, right: i64, top: i64, bottom: i64) -> Self {
+    pub fn new(left: i64, top: i64, right: i64, bottom: i64) -> Self {
         Self {
             rect: Area::from_points(left, top, right, bottom),
         }
+    }
+
+    #[inline]
+    pub fn top(&self) -> i64 {
+        self.rect.top()
+    }
+
+    #[inline]
+    pub fn area(&self) -> i64 {
+        self.rect.area()
     }
 
     pub fn intersection(&self, other: &LagoonArea) -> Option<Self> {

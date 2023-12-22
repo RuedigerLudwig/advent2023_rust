@@ -8,8 +8,8 @@ pub struct Area<T>
 where
     T: Num,
 {
-    lower_left: Pos2<T>,
-    upper_right: Pos2<T>,
+    lower_right: Pos2<T>,
+    upper_left: Pos2<T>,
 }
 
 impl<T> Area<T>
@@ -18,15 +18,15 @@ where
 {
     pub fn new(p1: Pos2<T>, p2: Pos2<T>) -> Area<T> {
         Area {
-            lower_left: p1.min_components(p2),
-            upper_right: p1.max_components(p2),
+            lower_right: p1.max_components(p2),
+            upper_left: p1.min_components(p2),
         }
     }
 
     pub fn from_points(x1: T, y1: T, x2: T, y2: T) -> Area<T> {
         Area {
-            lower_left: Pos2::new(x1.min(x2), y1.min(y2)),
-            upper_right: Pos2::new(x1.max(x2), y1.max(y2)),
+            lower_right: Pos2::new(x1.max(x2), y1.max(y2)),
+            upper_left: Pos2::new(x1.min(x2), y1.min(y2)),
         }
     }
 }
@@ -41,53 +41,35 @@ where
         }
 
         Area {
-            lower_left: self.lower_left.min_components(pos),
-            upper_right: self.upper_right.max_components(pos),
+            lower_right: self.lower_right.max_components(pos),
+            upper_left: self.upper_left.min_components(pos),
         }
     }
-    pub fn lower_left(&self) -> Pos2<T> {
-        self.lower_left
-    }
-
-    pub fn upper_right(&self) -> Pos2<T> {
-        self.upper_right
+    pub fn lower_right(&self) -> Pos2<T> {
+        self.lower_right
     }
 
     pub fn upper_left(&self) -> Pos2<T> {
-        Pos2::new(self.lower_left.x(), self.upper_right.y())
+        self.upper_left
     }
 
-    pub fn lower_right(&self) -> Pos2<T> {
-        Pos2::new(self.upper_right.x(), self.lower_left.y())
+    pub fn upper_right(&self) -> Pos2<T> {
+        Pos2::new(self.lower_right.x(), self.upper_left.y())
     }
 
-    pub fn top(&self) -> T {
-        self.upper_right.y()
-    }
-
-    pub fn right(&self) -> T {
-        self.upper_right.x()
-    }
-
-    pub fn bottom(&self) -> T {
-        self.lower_left.y()
-    }
-
-    pub fn left(&self) -> T {
-        self.lower_left.x()
+    pub fn lower_left(&self) -> Pos2<T> {
+        Pos2::new(self.upper_left.x(), self.lower_right.y())
     }
 
     pub fn contains(&self, pos: Pos2<T>) -> bool {
-        self.lower_left.x() <= pos.x()
-            && pos.x() <= self.upper_right.x()
-            && self.lower_left.y() <= pos.y()
-            && pos.y() <= self.upper_right.y()
+        (self.left()..=self.right()).contains(&pos.x())
+            && (self.top()..=self.bottom()).contains(&pos.y())
     }
 
     pub fn widen(self, inc: T) -> Self {
         Self::new(
-            self.lower_left - Pos2::splat(inc),
-            self.upper_right + Pos2::splat(inc),
+            self.lower_right - Pos2::splat(inc),
+            self.upper_left + Pos2::splat(inc),
         )
     }
 }
@@ -113,13 +95,32 @@ impl<T> Area<T>
 where
     T: Num + Copy,
 {
-    pub fn width(&self) -> T {
-        self.upper_right.x() - self.lower_left.x() + T::one()
+    #[inline]
+    pub fn top(&self) -> T {
+        self.upper_left.y()
     }
 
-    #[allow(dead_code)]
+    #[inline]
+    pub fn right(&self) -> T {
+        self.lower_right.x()
+    }
+
+    #[inline]
+    pub fn bottom(&self) -> T {
+        self.lower_right.y()
+    }
+
+    #[inline]
+    pub fn left(&self) -> T {
+        self.upper_left.x()
+    }
+
+    pub fn width(&self) -> T {
+        self.right() - self.left() + T::one()
+    }
+
     pub fn height(&self) -> T {
-        self.upper_right.y() - self.lower_left.y() + T::one()
+        self.bottom() - self.top() + T::one()
     }
 }
 
@@ -138,7 +139,7 @@ where
     T: Num + Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}-{}]", self.lower_left, self.upper_right)
+        write!(f, "[{}-{}]", self.lower_right, self.upper_left)
     }
 }
 
@@ -172,11 +173,7 @@ where
     fn new(area: &'a Area<T>, ascending: bool) -> RowIterator<'a, T> {
         RowIterator {
             area,
-            row: if ascending {
-                area.lower_left.y()
-            } else {
-                area.upper_right.y()
-            },
+            row: if ascending { area.bottom() } else { area.top() },
             ascending,
         }
     }
@@ -189,8 +186,8 @@ where
     type Item = Row<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if (self.ascending && self.row <= self.area.upper_right.y())
-            || (!self.ascending && self.row >= self.area.lower_left.y())
+        if (self.ascending && self.row >= self.area.top())
+            || (!self.ascending && self.row <= self.area.bottom())
         {
             let row = Row {
                 area: self.area,
@@ -226,9 +223,9 @@ where
             area: self.area,
             row: self.row,
             col: if ascending {
-                self.area.lower_left.x()
+                self.area.left()
             } else {
-                self.area.upper_right.x()
+                self.area.right()
             },
             ascending,
         }
@@ -252,8 +249,8 @@ where
 {
     type Item = Pos2<T>;
     fn next(&mut self) -> Option<Self::Item> {
-        if (self.ascending && self.col <= self.area.upper_right.x())
-            || (!self.ascending && self.col >= self.area.lower_left.x())
+        if (self.ascending && self.col <= self.area.right())
+            || (!self.ascending && self.col >= self.area.left())
         {
             let pos = Pos2::new(self.col, self.row);
             if self.ascending {
@@ -285,9 +282,9 @@ where
 {
     pub fn new(area: &'a Area<T>, ascending: bool) -> CellIterator<'a, T> {
         let (col, row) = if ascending {
-            (area.lower_left.x(), area.lower_left.y())
+            (area.left(), area.bottom())
         } else {
-            (area.upper_right.x(), area.upper_right.y())
+            (area.right(), area.top())
         };
         CellIterator {
             area,
@@ -305,21 +302,21 @@ where
     type Item = Pos2<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if (self.ascending && self.row <= self.area.upper_right.y())
-            || (!self.ascending && self.row >= self.area.lower_left.y())
+        if (self.ascending && self.row >= self.area.top())
+            || (!self.ascending && self.row <= self.area.bottom())
         {
             let pos = Pos2::new(self.col, self.row);
             if self.ascending {
                 self.col += T::one();
-                if self.col > self.area.upper_right.x() {
-                    self.row += T::one();
-                    self.col = self.area.lower_left.x();
+                if self.col > self.area.right() {
+                    self.row -= T::one();
+                    self.col = self.area.left();
                 }
             } else {
                 self.col -= T::one();
-                if self.col < self.area.lower_left.x() {
-                    self.row -= T::one();
-                    self.col = self.area.upper_right.x();
+                if self.col < self.area.left() {
+                    self.row += T::one();
+                    self.col = self.area.right();
                 }
             }
 
