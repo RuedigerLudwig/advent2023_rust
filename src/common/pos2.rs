@@ -2,7 +2,7 @@
 
 use super::direction::Direction;
 use super::{abs::Abs, math::gcd};
-use num_traits::{CheckedAdd, CheckedSub, Float, Num, NumCast, Signed, Zero};
+use num_traits::{CheckedAdd, CheckedSub, Float, Num, NumCast, One, Signed, Zero};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Index, Mul, Neg, Sub, SubAssign};
 
@@ -206,14 +206,46 @@ where
     }
 }
 
+impl<T> Pos2<T>
+where
+    T: Zero + One,
+{
+    #[inline]
+    pub fn unit_x() -> Self {
+        Self::new(T::one(), T::zero())
+    }
+
+    #[inline]
+    pub fn unit_y() -> Self {
+        Self::new(T::zero(), T::one())
+    }
+}
+
+impl<T> Pos2<T>
+where
+    T: Zero,
+{
+    #[inline]
+    pub fn new_x(x: T) -> Self {
+        Self::new(x, T::zero())
+    }
+
+    #[inline]
+    pub fn new_y(y: T) -> Self {
+        Self::new(T::zero(), y)
+    }
+}
+
 impl<T> Zero for Pos2<T>
 where
     T: Num + Zero + Copy,
 {
+    #[inline]
     fn zero() -> Self {
         Pos2::splat(T::zero())
     }
 
+    #[inline]
     fn is_zero(&self) -> bool {
         self.x.is_zero() && self.y.is_zero()
     }

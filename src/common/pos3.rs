@@ -290,9 +290,7 @@ impl<T: Copy> Iterator for PosIterator<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(idx) = self.idx else {
-            return None;
-        };
+        let idx = self.idx?;
         self.idx = (idx < 2).then_some(idx + 1);
         Some(self.pos[idx])
     }

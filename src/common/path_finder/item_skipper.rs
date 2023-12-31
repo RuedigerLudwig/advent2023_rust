@@ -7,6 +7,7 @@ pub trait ItemSkipper {
     fn skip_item(&mut self, item: &Self::Item) -> bool;
 
     #[inline]
+    #[allow(unused_variables)]
     fn skip_when_finished(&self, item: &Self::Item) -> bool {
         false
     }

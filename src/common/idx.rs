@@ -120,31 +120,29 @@ where
     }
 }
 
-pub struct Stepper {
+pub struct InclusiveStepper {
     current: Option<Idx>,
     target: Idx,
 }
 
-impl Stepper {
+impl InclusiveStepper {
     pub fn new<I, J>(start: I, target: J) -> Self
     where
         I: Into<Idx>,
         J: Into<Idx>,
     {
-        Stepper {
+        InclusiveStepper {
             current: Some(start.into()),
             target: target.into(),
         }
     }
 }
 
-impl Iterator for Stepper {
+impl Iterator for InclusiveStepper {
     type Item = Idx;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(current) = self.current else {
-            return None;
-        };
+        let current = self.current?;
         match current.cmp(&self.target) {
             std::cmp::Ordering::Equal => self.current = None,
             std::cmp::Ordering::Less => self.current = Some(current + 1),
