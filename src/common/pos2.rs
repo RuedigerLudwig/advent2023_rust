@@ -360,6 +360,10 @@ where
 }
 
 impl Pos2<usize> {
+    pub fn matrix_get<'a, A>(&self, mat: &'a [Vec<A>]) -> &'a A {
+        &mat[self.y()][self.x()]
+    }
+
     pub fn safe_matrix_get<'a, A>(&self, mat: &'a [Vec<A>]) -> Option<&'a A> {
         mat.get(self.y()).and_then(|row| row.get(self.x()))
     }

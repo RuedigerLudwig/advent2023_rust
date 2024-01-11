@@ -78,7 +78,7 @@ impl Direction {
     }
 
     pub fn turn_right(&self) -> Direction {
-        match *self {
+        match self {
             East => South,
             North => East,
             West => North,
@@ -87,7 +87,7 @@ impl Direction {
     }
 
     pub fn turn_left(&self) -> Direction {
-        match *self {
+        match self {
             East => North,
             North => West,
             West => South,
@@ -96,12 +96,25 @@ impl Direction {
     }
 
     pub fn turn_back(&self) -> Direction {
-        match *self {
+        match self {
             East => West,
             North => South,
             West => East,
             South => North,
         }
+    }
+
+    pub fn as_bit(&self) -> u8 {
+        match self {
+            East => 0x01,
+            North => 0x02,
+            West => 0x04,
+            South => 0x08,
+        }
+    }
+
+    pub fn from_bit(value: u8) -> impl Iterator<Item = Self> {
+        Self::iter().filter(move |d| d.as_bit() & value != 0)
     }
 }
 

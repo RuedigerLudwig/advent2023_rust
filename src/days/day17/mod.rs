@@ -1,22 +1,15 @@
 use self::debug::HeatDebugger;
-
 use super::{DayTrait, DayType, RResult};
 use crate::common::{
     direction::Direction,
-    path_finder::{find_best_path, ItemSkipper, PathFinder},
+    path_finder::{find_best_path, FingerprintItem, FingerprintSkipper, PathFinder},
     pos2::Pos2,
 };
 use itertools::Itertools;
-use std::{
-    collections::{BinaryHeap, HashSet},
-    num,
-    str::FromStr,
-};
+use std::{collections::BinaryHeap, num, str::FromStr};
 
 #[cfg(feature = "debug")]
 use colored::Colorize;
-#[cfg(feature = "debug")]
-use std::collections::HashMap;
 
 const DAY_NUMBER: DayType = 17;
 
@@ -28,8 +21,7 @@ impl DayTrait for Day {
     }
 
     fn part1(&self, input: &str) -> RResult {
-        let mut map: HeatMap = input.parse()?;
-        map.set_checker(HeatChecker::new(0, 3));
+        let map: HeatMap = input.parse()?;
         Ok(map.best_path()?.into())
     }
 
@@ -106,7 +98,7 @@ mod debug {
         }
     }
 }
-//#[cfg(not(feature = "debug"))]
+#[cfg(not(feature = "debug"))]
 mod debug {
     use super::*;
     #[derive(Debug, Clone)]
@@ -164,54 +156,25 @@ impl Ord for HeatFlow {
     }
 }
 
-struct HeatSkipper {
-    checker: HeatChecker,
-    visited: HashSet<(Pos2<usize>, Direction, usize)>,
-}
+impl FingerprintItem for HeatFlow {
+    type Fingerprint = (Pos2<usize>, Option<Direction>, usize);
 
-impl HeatSkipper {
-    pub fn new(checker: HeatChecker) -> Self {
-        Self {
-            checker,
-            visited: HashSet::new(),
-        }
-    }
-}
-
-impl ItemSkipper for HeatSkipper {
-    type Item = HeatFlow;
-
-    fn init() -> Self {
-        unreachable!()
-    }
-
-    fn skip_item(&mut self, item: &Self::Item) -> bool {
-        let Some(direction) = item.direction else {
-            return false;
-        };
-        let skip = self.checker.check(item.straight)
-            || self.visited.contains(&(item.pos, direction, item.straight));
-        if !skip {
-            self.visited.insert((item.pos, direction, item.straight));
-        }
-        skip
+    fn get_fingerprint(&self) -> Self::Fingerprint {
+        (self.pos, self.direction, self.straight)
     }
 }
 
 struct HeatMap {
     map: Vec<Vec<u32>>,
-    checker: Option<HeatChecker>,
+    checker: HeatChecker,
 }
 
 impl HeatMap {
     pub fn set_checker(&mut self, checker: HeatChecker) {
-        self.checker = Some(checker);
+        self.checker = checker;
     }
 
     pub fn best_path(self) -> Result<u32, DayError> {
-        if self.checker.is_none() {
-            return Err(DayError::NoCheckerSet);
-        }
         find_best_path(self)
             .map(|heat_flow| heat_flow.loss)
             .ok_or(DayError::NoBestPathFound)
@@ -221,7 +184,7 @@ impl HeatMap {
 impl PathFinder for HeatMap {
     type Item = HeatFlow;
     type Queue = BinaryHeap<Self::Item>;
-    type Skipper = HeatSkipper;
+    type Skipper = FingerprintSkipper<HeatFlow>;
 
     fn get_start_item(&self) -> Self::Item {
         HeatFlow {
@@ -231,11 +194,6 @@ impl PathFinder for HeatMap {
             direction: None,
             debugger: HeatDebugger::new(),
         }
-    }
-
-    fn init_skipper(&self) -> Self::Skipper {
-        let checker = self.checker.unwrap_or(HeatChecker::new(0, 3));
-        HeatSkipper::new(checker)
     }
 
     fn is_finished(&self, item: &Self::Item) -> bool {
@@ -252,30 +210,30 @@ impl PathFinder for HeatMap {
         item: &'a Self::Item,
     ) -> impl Iterator<Item = Self::Item> + 'a {
         Direction::iter().filter_map(|direction| {
-            let mut loss = item.loss;
             let mut straight = item.straight;
-            let mut steps = self.checker.map(|c| c.min_steps).unwrap_or(0);
+            let mut steps = self.checker.min_steps;
             if let Some(prev_direction) = item.direction {
                 if direction == prev_direction.turn_back() {
                     return None;
                 }
                 if direction == prev_direction {
-                    straight = 0;
                     steps = 1;
+                } else {
+                    straight = 0;
                 }
             }
+            let mut loss = item.loss;
             let mut pos = item.pos;
             let mut debugger = item.debugger.clone();
             for _ in 0..steps {
-                let Some((next_pos, &next_loss)) =
-                    pos.safe_matrix_add_and_get(&self.map, direction)
-                else {
-                    return None;
-                };
+                let (next_pos, &next_loss) = pos.safe_matrix_add_and_get(&self.map, direction)?;
                 straight += 1;
                 loss += next_loss;
                 pos = next_pos;
                 debugger.push(pos, direction, loss, straight);
+            }
+            if !self.checker.check(straight) {
+                return None;
             }
 
             Some(HeatFlow {
@@ -307,7 +265,10 @@ impl FromStr for HeatMap {
         if !map.iter().map(|row| row.len()).all_equal() {
             return Err(DayError::HeatMapMustBeRectangle);
         }
-        Ok(Self { map, checker: None })
+        Ok(Self {
+            map,
+            checker: HeatChecker::new(1, 3),
+        })
     }
 }
 
@@ -323,8 +284,6 @@ enum DayError {
     HeatMapMustBeRectangle,
     #[error("no best path found")]
     NoBestPathFound,
-    #[error("No checker set")]
-    NoCheckerSet,
 }
 
 #[cfg(test)]
