@@ -73,14 +73,14 @@ struct MirrorPath {
 
 struct Contraption {
     mirrors: Vec<Vec<Mirror>>,
-    known_splits: HashMap<Pos2<usize>, MirrorPath>,
+    mirror_path: HashMap<Pos2<usize>, MirrorPath>,
 }
 
-fn first_key<A, B>(set: HashSet<(A, B)>) -> HashSet<A>
+fn first_item<A, B>(tuples: impl IntoIterator<Item = (A, B)>) -> HashSet<A>
 where
     A: Eq + Hash,
 {
-    set.into_iter().map(|(a, _)| a).collect()
+    tuples.into_iter().map(|(a, _)| a).collect()
 }
 
 impl Contraption {
@@ -92,7 +92,7 @@ impl Contraption {
         } else {
             let mut contraption = Self {
                 mirrors,
-                known_splits: HashMap::new(),
+                mirror_path: HashMap::new(),
             };
             contraption.follow_mirrors();
             Ok(contraption)
@@ -111,7 +111,7 @@ impl Contraption {
                 continue;
             }
             seen.push(pos);
-            let info = self.known_splits.get(&pos).unwrap();
+            let info = self.mirror_path.get(&pos).unwrap();
             energized.extend(&info.energized);
             queue.extend(&info.end_points);
         }
@@ -158,7 +158,7 @@ impl Contraption {
                             end_points.push(west);
                         }
                         energized.extend(energized_west);
-                        self.known_splits.insert(
+                        self.mirror_path.insert(
                             pos,
                             MirrorPath {
                                 end_points,
@@ -178,7 +178,7 @@ impl Contraption {
                             end_points.push(south);
                         }
                         energized.extend(energized_south);
-                        self.known_splits.insert(
+                        self.mirror_path.insert(
                             pos,
                             MirrorPath {
                                 end_points,
@@ -196,19 +196,19 @@ impl Contraption {
         mut pos: Pos2<usize>,
         mut direction: Direction,
     ) -> (Option<Pos2<usize>>, HashSet<Pos2<usize>>) {
-        let mut touched = HashSet::new();
+        let mut touched = vec![];
         let mut mirror = pos.safe_matrix_get(&self.mirrors).unwrap();
         loop {
             match mirror {
                 Mirror::None => {}
                 Mirror::Horizontal => {
                     if direction.is_vertical() {
-                        return (Some(pos), first_key(touched));
+                        return (Some(pos), first_item(touched));
                     }
                 }
                 Mirror::Vertical => {
                     if direction.is_horizontal() {
-                        return (Some(pos), first_key(touched));
+                        return (Some(pos), first_item(touched));
                     }
                 }
                 Mirror::UpRight => {
@@ -227,17 +227,17 @@ impl Contraption {
                 }
             }
 
-            touched.insert((pos, direction));
+            touched.push((pos, direction));
             if let Some((next_pos, next_mirror)) =
                 pos.safe_matrix_add_and_get(&self.mirrors, direction)
             {
                 if touched.contains(&(next_pos, direction)) {
-                    return (None, first_key(touched));
+                    return (None, first_item(touched));
                 }
                 pos = next_pos;
                 mirror = next_mirror;
             } else {
-                return (None, first_key(touched));
+                return (None, first_item(touched));
             }
         }
     }
