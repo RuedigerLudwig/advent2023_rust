@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use super::direction::Direction;
+use super::pos3::Pos3;
 use super::{abs::Abs, math::gcd};
 use num_traits::{CheckedAdd, CheckedSub, Float, Num, NumCast, One, Signed, Zero};
 use std::fmt;
@@ -57,6 +58,14 @@ where
 
     pub fn y(&self) -> T {
         self.y
+    }
+
+    pub fn swap(&self) -> Self {
+        Self::new(self.y, self.x)
+    }
+
+    pub fn expand_z(&self, z: T) -> Pos3<T> {
+        Pos3::new(self.x, self.y, z)
     }
 }
 

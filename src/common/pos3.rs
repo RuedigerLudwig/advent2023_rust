@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 use num_traits::{Num, PrimInt, Signed, Zero};
 use std::fmt;
-use std::ops::{Add, Div, Index, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, Index, Mul, Neg, Sub};
+
+use super::pos2::Pos2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Pos3<T> {
@@ -52,6 +54,20 @@ impl<T: Copy + Default> From<&[T]> for Pos3<T> {
             2 => Pos3::new(value[0], value[1], T::default()),
             _ => Pos3::new(value[0], value[1], value[2]),
         }
+    }
+}
+
+impl<T: Copy> Pos3<T> {
+    pub fn project_xy(&self) -> Pos2<T> {
+        Pos2::new(self.x, self.y)
+    }
+
+    pub fn project_xz(&self) -> Pos2<T> {
+        Pos2::new(self.x, self.z)
+    }
+
+    pub fn project_yz(&self) -> Pos2<T> {
+        Pos2::new(self.y, self.z)
     }
 }
 
@@ -152,6 +168,18 @@ where
     fn add(self, rhs: P) -> Self::Output {
         let rhs = rhs.into();
         Pos3::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+    }
+}
+
+impl<T, P: Into<Pos3<T>>> AddAssign<P> for Pos3<T>
+where
+    T: Num + Copy + AddAssign<T>,
+{
+    fn add_assign(&mut self, rhs: P) {
+        let rhs = rhs.into();
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
     }
 }
 

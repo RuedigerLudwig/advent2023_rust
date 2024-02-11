@@ -10,8 +10,8 @@ debug = []
 [dependencies]
 anyhow = "1.0.79"
 colored = "2.1.0"
-either = "1.9.0"
+either = "1.10.0"
 itertools = "0.12.1"
-num-traits = "0.2.17"
+num-traits = "0.2.18"
 rand = "0.8.5"
 thiserror = "1.0.56"
