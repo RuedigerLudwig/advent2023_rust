@@ -1,4 +1,5 @@
 #![feature(iter_partition_in_place)]
+#![feature(let_chains)]
 use days::{day_provider, read_string, DayTrait, DayType, PartType, ResultType, UnitResult};
 use std::{env, time};
 
