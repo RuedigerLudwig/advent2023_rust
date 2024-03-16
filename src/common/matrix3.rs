@@ -30,6 +30,20 @@ where
     }
 }
 
+impl<T> Matrix3<T>
+where
+    T: Num + Copy,
+{
+    pub fn determinante(&self) -> T {
+        self.0[0].x() * self.0[1].y() * self.0[2].z()
+            + self.0[1].x() * self.0[2].y() * self.0[0].z()
+            + self.0[2].x() * self.0[0].y() * self.0[1].z()
+            - self.0[0].x() * self.0[2].y() * self.0[1].z()
+            - self.0[1].x() * self.0[0].y() * self.0[2].z()
+            - self.0[2].x() * self.0[1].y() * self.0[0].z()
+    }
+}
+
 impl<T> Mul for Matrix3<T>
 where
     T: Num + Copy,

@@ -14,6 +14,33 @@ where
 
 impl<T> Area<T>
 where
+    T: Num + Copy + PartialOrd,
+{
+    pub fn create(p1: Pos2<T>, p2: Pos2<T>) -> Option<Self> {
+        let p1x = p1.x();
+        let p1y = p1.y();
+        let p2x = p2.x();
+        let p2y = p2.y();
+        match (p1x.partial_cmp(&p2x), p1y.partial_cmp(&p2y)) {
+            (Some(std::cmp::Ordering::Less), Some(std::cmp::Ordering::Less)) => Some(Area {
+                lower_right: Pos2::new(p2x, p2y),
+                upper_left: Pos2::new(p1x, p1y),
+            }),
+            (Some(_), Some(std::cmp::Ordering::Less)) => Some(Area {
+                lower_right: Pos2::new(p1x, p2y),
+                upper_left: Pos2::new(p2x, p1y),
+            }),
+            (Some(_), Some(_)) => Some(Area {
+                lower_right: Pos2::new(p1x, p1y),
+                upper_left: Pos2::new(p2x, p2y),
+            }),
+            _ => None,
+        }
+    }
+}
+
+impl<T> Area<T>
+where
     T: Num + Ord + Copy,
 {
     pub fn new(p1: Pos2<T>, p2: Pos2<T>) -> Area<T> {
@@ -36,7 +63,7 @@ where
     T: Num + Ord + Copy,
 {
     pub fn extend(&self, pos: Pos2<T>) -> Area<T> {
-        if self.contains(pos) {
+        if self.contains(&pos) {
             return *self;
         }
 
@@ -61,16 +88,21 @@ where
         Pos2::new(self.upper_left.x(), self.lower_right.y())
     }
 
-    pub fn contains(&self, pos: Pos2<T>) -> bool {
-        (self.left()..=self.right()).contains(&pos.x())
-            && (self.top()..=self.bottom()).contains(&pos.y())
-    }
-
     pub fn widen(self, inc: T) -> Self {
         Self::new(
             self.lower_right - Pos2::splat(inc),
             self.upper_left + Pos2::splat(inc),
         )
+    }
+}
+
+impl<T> Area<T>
+where
+    T: Num + PartialOrd + Copy,
+{
+    pub fn contains(&self, pos: &Pos2<T>) -> bool {
+        (self.left()..=self.right()).contains(&pos.x())
+            && (self.top()..=self.bottom()).contains(&pos.y())
     }
 }
 

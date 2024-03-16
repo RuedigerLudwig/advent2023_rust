@@ -133,9 +133,7 @@ where
             } else {
                 T::zero() - self.y
             };
-            gcd(x, y)
-                .map(|ggt| (Pos2::new(self.x / ggt, self.y / ggt), ggt))
-                .ok_or(self)
+            gcd(x, y).map(|ggt| (self.div(ggt), ggt)).ok_or(self)
         }
     }
 }

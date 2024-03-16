@@ -8,10 +8,14 @@ default = []
 debug = []
 
 [dependencies]
-anyhow = "1.0.79"
+anyhow = "1.0.81"
 colored = "2.1.0"
 either = "1.10.0"
 itertools = "0.12.1"
 num-traits = "0.2.18"
 rand = "0.8.5"
-thiserror = "1.0.57"
+thiserror = "1.0.58"
+ndarray = { version = "0.15.6", features = ["blas"] }
+blas-src = { version = "0.10.0", featur0.2.1 = ["openblas"] }
+openblas-src = { version = "0.10.9", features = ["cblas", "system"] }
+ndarray-linalg = { version = "0.16", features = ["netlib-system"] }

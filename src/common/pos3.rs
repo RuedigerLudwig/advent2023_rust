@@ -3,6 +3,7 @@ use num_traits::{Num, PrimInt, Signed, Zero};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Index, Mul, Neg, Sub};
 
+use super::math::gcd;
 use super::pos2::Pos2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -110,6 +111,37 @@ where
 
 impl<T> Pos3<T>
 where
+    T: Num + Ord + Copy,
+{
+    pub fn normalize(self) -> Result<(Pos3<T>, T), Pos3<T>> {
+        if self.x.is_zero() || self.y.is_zero() || self.z.is_zero() {
+            Err(self)
+        } else {
+            let x = if self.x >= T::zero() {
+                self.x
+            } else {
+                T::zero() - self.x
+            };
+            let y = if self.y >= T::zero() {
+                self.y
+            } else {
+                T::zero() - self.y
+            };
+            let z = if self.z >= T::zero() {
+                self.z
+            } else {
+                T::zero() - self.z
+            };
+            gcd(x, y)
+                .and_then(|gcd1| gcd(gcd1, z))
+                .map(|ggt| (self.div(ggt), ggt))
+                .ok_or(self)
+        }
+    }
+}
+
+impl<T> Pos3<T>
+where
     T: Ord + Copy,
 {
     pub fn max_components(self, other: Pos3<T>) -> Self {
@@ -126,6 +158,18 @@ where
             self.y.min(other.y),
             self.z.min(other.z),
         )
+    }
+
+    pub fn sort_by_components(&self, other: &Pos3<T>) -> std::cmp::Ordering {
+        match self.x.cmp(&other.x) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.y.cmp(&other.y) {
+            std::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.z.cmp(&other.z)
     }
 }
 
@@ -253,6 +297,10 @@ where
             self.z * rhs.x - self.x * rhs.z,
             self.x * rhs.y - self.y * rhs.x,
         )
+    }
+
+    pub fn dot(&self, other: Pos3<T>) -> T {
+        self.x * other.x + self.y * other.y + self.z * other.z
     }
 }
 
